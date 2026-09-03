@@ -86,16 +86,18 @@ uvicorn app.main:app --reload --port 8000
 
 ## Docker & Docker Compose Setup
 
-Run the application and PostgreSQL together in isolated containers with persistence and health checking.
+Run the application and PostgreSQL together in isolated containers with persistence and health checking. The deployment Compose file is image-based: set `DOCKER_IMAGE` in `.env` to an existing Docker Hub image before starting it.
 
-### 1. Build Containers
+### 1. Configure the image
 ```bash
-docker compose build
+cp .env.example .env
+# Set DOCKER_IMAGE to a published image in .env
 ```
 
 ### 2. Start Services
 ```bash
-docker compose up -d
+docker compose pull api
+docker compose up -d --no-build
 ```
 
 ### 3. Check Status and Logs
@@ -138,10 +140,10 @@ git push (main)
   ▼
 3. Deploy to AWS EC2
    ├── Copy docker-compose.yml to EC2 via SCP (~/app)
-   ├── Securely write ~/app/.env with DOCKER_IMAGE and DB credentials
-   ├── Pull updated application container image: `docker compose pull api`
-   ├── Start containers without building: `docker compose up -d --no-build`
-   └── Run automated HTTP health check retry loop against http://localhost:8000/health
+   ├── Securely write ~/app/.env with the immutable image tag and DB credentials
+   ├── Pull the Docker Hub image: `docker compose pull api`
+   ├── Start containers without a local build: `docker compose up -d --no-build`
+   └── Run an HTTP health check retry loop against http://localhost:8000/health
 ```
 
 ### Required GitHub Secrets
@@ -155,3 +157,20 @@ To enable automated container build, push, and remote EC2 deployment, configure 
 | `EC2_USER` | SSH username for your EC2 Linux distribution | `ubuntu` (for Ubuntu) or `ec2-user` (for Amazon Linux) |
 | `EC2_SSH_KEY` | Raw PEM private key contents used to connect to your EC2 instance | `-----BEGIN RSA PRIVATE KEY----- ... -----END RSA PRIVATE KEY-----` |
 | `POSTGRES_PASSWORD` | Secure production database password for PostgreSQL | `my_strong_db_password_123` |
+
+`POSTGRES_PASSWORD` is required for production deployment and must be stored only as a GitHub Actions repository secret. Never put the production value in the repository, workflow file, or command-line arguments.
+
+### EC2 deployment and monitoring
+
+The deploy job creates or updates `~/app/.env` on EC2, then runs:
+
+```bash
+cd ~/app
+docker compose pull api
+docker compose up -d --no-build
+docker compose ps
+```
+
+The API runs from the Docker Hub image tagged with the commit SHA that triggered the workflow. PostgreSQL is available only on the internal Compose network; port `5432` is not published publicly. The named `postgres_data` volume preserves database data across container replacements, and the API remains available on port `8000`.
+
+For operational checks on EC2, use `docker compose ps`, `docker compose logs --tail 100 api`, and `curl --fail http://localhost:8000/health`. The workflow retries this health endpoint after startup and fails the deployment if the service does not become healthy.
