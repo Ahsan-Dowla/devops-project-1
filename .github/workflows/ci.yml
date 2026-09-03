@@ -119,16 +119,14 @@ jobs:
 
             # Securely write deployment environment variables to ~/app/.env
             # This ensures docker compose always has access to DOCKER_IMAGE and DB credentials
-            cat > .env <<EOF
-            DOCKER_IMAGE=${DOCKER_IMAGE}
-            POSTGRES_USER=postgres
-            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-            POSTGRES_DB=devops_db
-            APP_NAME="DevOps Item Service"
-            APP_ENV=production
-            DEBUG=False
-            PORT=8000
-            EOF
+            printf "DOCKER_IMAGE=%s\n" "${DOCKER_IMAGE}" > .env
+            printf "POSTGRES_USER=%s\n" "postgres" >> .env
+            printf "POSTGRES_PASSWORD=%s\n" "${POSTGRES_PASSWORD}" >> .env
+            printf "POSTGRES_DB=%s\n" "devops_db" >> .env
+            printf "APP_NAME=%s\n" "DevOps Item Service" >> .env
+            printf "APP_ENV=%s\n" "production" >> .env
+            printf "DEBUG=%s\n" "False" >> .env
+            printf "PORT=%s\n" "8000" >> .env
 
             # Restrict file permissions for .env on the remote server
             chmod 600 .env
