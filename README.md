@@ -174,3 +174,41 @@ docker compose ps
 The API runs from the Docker Hub image tagged with the commit SHA that triggered the workflow. PostgreSQL is available only on the internal Compose network; port `5432` is not published publicly. The named `postgres_data` volume preserves database data across container replacements, and the API remains available on port `8000`.
 
 For operational checks on EC2, use `docker compose ps`, `docker compose logs --tail 100 api`, and `curl --fail http://localhost:8000/health`. The workflow retries this health endpoint after startup and fails the deployment if the service does not become healthy.
+
+---
+
+## Infrastructure as Code with Terraform
+
+Terraform provides a repeatable, reviewable description of the existing AWS
+infrastructure without replacing the live server. The configuration in
+[`terraform/`](terraform/) adopts the `devops-demo-server` EC2 instance and its
+existing security group, while protecting both resources with
+`prevent_destroy = true`. It preserves the instance's AMI, `t3.micro` type,
+subnet, key pair, public IP behavior, storage, and required SSH/API/HTTP rules.
+PostgreSQL port `5432` is not exposed.
+
+Terraform uses the standard AWS credential chain or profile; no AWS keys,
+passwords, or tokens are stored in Terraform files. `terraform.tfvars` and
+Terraform state are ignored because they can contain infrastructure details
+and sensitive values.
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform fmt -recursive
+terraform validate
+terraform plan
+```
+
+Before planning, fill in the current AMI, subnet, key pair, VPC, and security
+group values. Import the existing resources rather than creating new ones:
+
+```bash
+terraform import aws_instance.production i-02318fd1b3f7f89b3
+terraform import aws_security_group.production sg-REPLACE_WITH_EXISTING_SECURITY_GROUP_ID
+```
+
+Never run `terraform apply` until the plan has been reviewed and confirms no
+EC2 replacement or destruction. See [`terraform/README.md`](terraform/README.md)
+for the complete safe adoption workflow.
