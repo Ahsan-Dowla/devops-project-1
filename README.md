@@ -114,3 +114,44 @@ curl http://localhost:8000/health
 docker compose down
 ```
 
+---
+
+## Automated CI/CD Pipeline (GitHub Actions to AWS EC2)
+
+The repository includes a 3-stage automated CI/CD pipeline defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+```text
+git push (main)
+  │
+  ▼
+1. Run Automated Tests
+   ├── Real PostgreSQL service container with pg_isready healthcheck
+   ├── Python 3.13 setup with pip caching
+   └── pytest test suite (100% pass required)
+  │
+  ▼
+2. Build & Push Docker Image
+   ├── Docker Buildx setup
+   ├── Docker Hub authentication (via GitHub Secrets)
+   └── Build & push image tagged with latest and ${{ github.sha }}
+  │
+  ▼
+3. Deploy to AWS EC2
+   ├── Copy docker-compose.yml to EC2 via SCP
+   ├── Pull updated application container image on EC2 via SSH
+   ├── Restart services with `docker compose up -d`
+   └── Run automated curl HTTP health check against http://localhost:8000/health
+```
+
+### Required GitHub Secrets
+To enable automated container build, push, and remote EC2 deployment, configure the following secrets in your GitHub repository (**Settings > Secrets and variables > Actions**):
+
+| Secret Name | Description | Example / Format |
+|---|---|---|
+| `DOCKERHUB_USERNAME` | Your Docker Hub account username | `johndoe` |
+| `DOCKERHUB_TOKEN` | Docker Hub Personal Access Token (PAT) with Read & Write permissions | `dckr_pat_xxxxxx` |
+| `EC2_HOST` | Public IPv4 address or public DNS of your AWS EC2 instance | `54.210.xx.xx` or `ec2-xx.compute-1.amazonaws.com` |
+| `EC2_USER` | SSH username for your EC2 Linux distribution | `ubuntu` (for Ubuntu) or `ec2-user` (for Amazon Linux) |
+| `EC2_SSH_KEY` | Raw PEM private key contents used to connect to your EC2 instance | `-----BEGIN RSA PRIVATE KEY----- ... -----END RSA PRIVATE KEY-----` |
+
+
