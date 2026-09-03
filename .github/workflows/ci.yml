@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 "on":
   push:
@@ -50,8 +50,8 @@ jobs:
         run: |
           pytest -v
 
-  build:
-    name: Build Docker Image
+  build-and-push:
+    name: Build & Push Docker Image
     needs: test
     runs-on: ubuntu-latest
 
@@ -62,10 +62,77 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build Application Image
+      # Authenticate to Docker Hub using GitHub Secrets (only on push to main/master)
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build and push container image to Docker Hub
+      - name: Build & Push Application Image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: false
-          tags: devops-item-service:${{ github.sha }}
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-item-service:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-item-service:${{ github.sha }}
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: build-and-push
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code (for compose configuration)
+        uses: actions/checkout@v4
+
+      # Copy docker-compose.yml to EC2 instance so EC2 does not need git repo access
+      - name: Copy docker-compose.yml to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/app"
+
+      # Execute remote deployment commands on EC2 via SSH
+      - name: Deploy on EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: DOCKERHUB_USERNAME,DOCKER_IMAGE_TAG
+          env:
+            DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+            DOCKER_IMAGE_TAG: ${{ github.sha }}
+          script: |
+            set -e
+            cd ~/app
+
+            # Export deployment environment variables
+            export DOCKER_IMAGE="${DOCKERHUB_USERNAME}/devops-item-service:${DOCKER_IMAGE_TAG}"
+
+            echo "Pulling latest application image: ${DOCKER_IMAGE}..."
+            docker compose pull api
+
+            echo "Starting containers..."
+            docker compose up -d
+
+            echo "Waiting for service to be healthy..."
+            sleep 8
+
+            echo "Performing HTTP health check..."
+            curl --fail --retry 5 --retry-delay 3 --retry-connrefused http://localhost:8000/health || {
+              echo "Health check failed!"
+              docker compose logs --tail 30
+              exit 1
+            }
+
+            echo "Deployment successful and verified healthy!"
