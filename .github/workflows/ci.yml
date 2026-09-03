@@ -88,10 +88,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code (for compose configuration)
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Copy docker-compose.yml to EC2 instance so EC2 does not need git repo access
+      # Transfer docker-compose.yml to EC2 instance
       - name: Copy docker-compose.yml to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -105,34 +105,56 @@ jobs:
       - name: Deploy on EC2 via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKER_IMAGE_TAG: ${{ github.sha }}
+          DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/devops-item-service:${{ github.sha }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: DOCKERHUB_USERNAME,DOCKER_IMAGE_TAG
+          envs: DOCKER_IMAGE,POSTGRES_PASSWORD
           script: |
             set -e
+            mkdir -p ~/app
             cd ~/app
 
-            # Export deployment environment variables
-            export DOCKER_IMAGE="${DOCKERHUB_USERNAME}/devops-item-service:${DOCKER_IMAGE_TAG}"
+            # Securely write deployment environment variables to ~/app/.env
+            # This ensures docker compose always has access to DOCKER_IMAGE and DB credentials
+            cat > .env <<EOF
+            DOCKER_IMAGE=${DOCKER_IMAGE}
+            POSTGRES_USER=postgres
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            POSTGRES_DB=devops_db
+            APP_NAME="DevOps Item Service"
+            APP_ENV=production
+            DEBUG=False
+            PORT=8000
+            EOF
+
+            # Restrict file permissions for .env on the remote server
+            chmod 600 .env
 
             echo "Pulling latest application image: ${DOCKER_IMAGE}..."
             docker compose pull api
 
-            echo "Starting containers..."
-            docker compose up -d
+            echo "Deploying containers without local build..."
+            docker compose up -d --no-build
 
-            echo "Waiting for service to be healthy..."
-            sleep 8
+            echo "Listing container status..."
+            docker compose ps
 
-            echo "Performing HTTP health check..."
-            curl --fail --retry 5 --retry-delay 3 --retry-connrefused http://localhost:8000/health || {
-              echo "Health check failed!"
-              docker compose logs --tail 30
-              exit 1
-            }
+            echo "Waiting for services to become healthy..."
+            for i in $(seq 1 12); do
+              if curl -s --fail http://localhost:8000/health > /dev/null; then
+                echo "Health check passed on attempt $i!"
+                break
+              fi
+              echo "Health check attempt $i failed, waiting 5 seconds..."
+              sleep 5
+              if [ "$i" -eq 12 ]; then
+                echo "Deployment health check failed after 12 attempts!"
+                docker compose logs --tail 30
+                exit 1
+              fi
+            done
 
-            echo "Deployment successful and verified healthy!"
+            echo "Deployment successfully verified!"

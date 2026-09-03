@@ -137,10 +137,11 @@ git push (main)
   │
   ▼
 3. Deploy to AWS EC2
-   ├── Copy docker-compose.yml to EC2 via SCP
-   ├── Pull updated application container image on EC2 via SSH
-   ├── Restart services with `docker compose up -d`
-   └── Run automated curl HTTP health check against http://localhost:8000/health
+   ├── Copy docker-compose.yml to EC2 via SCP (~/app)
+   ├── Securely write ~/app/.env with DOCKER_IMAGE and DB credentials
+   ├── Pull updated application container image: `docker compose pull api`
+   ├── Start containers without building: `docker compose up -d --no-build`
+   └── Run automated HTTP health check retry loop against http://localhost:8000/health
 ```
 
 ### Required GitHub Secrets
@@ -153,5 +154,4 @@ To enable automated container build, push, and remote EC2 deployment, configure 
 | `EC2_HOST` | Public IPv4 address or public DNS of your AWS EC2 instance | `54.210.xx.xx` or `ec2-xx.compute-1.amazonaws.com` |
 | `EC2_USER` | SSH username for your EC2 Linux distribution | `ubuntu` (for Ubuntu) or `ec2-user` (for Amazon Linux) |
 | `EC2_SSH_KEY` | Raw PEM private key contents used to connect to your EC2 instance | `-----BEGIN RSA PRIVATE KEY----- ... -----END RSA PRIVATE KEY-----` |
-
-
+| `POSTGRES_PASSWORD` | Secure production database password for PostgreSQL | `my_strong_db_password_123` |
