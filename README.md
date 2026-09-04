@@ -8,38 +8,36 @@ The application is a small FastAPI + PostgreSQL Item Service, but the primary fo
 
 ```mermaid
 flowchart TD
-    User([Developer / User])
+    Developer([Developer])
 
     GitHub[GitHub Repository]
-    Actions[GitHub Actions]
 
-    Registry[Docker Hub]
+    Actions[GitHub Actions<br/>CI/CD]
+
+    DockerHub[(Docker Hub)]
 
     subgraph AWS["AWS EC2"]
         direction TB
 
-        Proxy[Reverse Proxy]
+        Compose[Docker Compose]
 
-        API[FastAPI API<br/>Port 8000]
+        API[FastAPI API<br/>:8000]
 
-        DB[(PostgreSQL)]
+        PostgreSQL[(PostgreSQL<br/>:5432)]
 
-        Volume[(Persistent<br/>PostgreSQL Volume)]
+        Volume[(Persistent<br/>Database Volume)]
 
-        API --> DB
-        DB --> Volume
+        Compose --> API
+        Compose --> PostgreSQL
+        PostgreSQL --> Volume
+        API --> PostgreSQL
     end
 
-    User --> GitHub
-    GitHub -->|Push to main| Actions
-
-    Actions -->|Build & Push<br/>SHA-tagged image| Registry
-
-    Registry -->|docker pull| API
-
-    User -->|HTTP / HTTPS| Proxy
-    Proxy --> API
-
+    Developer -->|git push| GitHub
+    GitHub -->|Trigger workflow| Actions
+    Actions -->|Build & push<br/>SHA-tagged image| DockerHub
+    DockerHub -->|docker pull| Compose
+```
 ## What This Project Demonstrates
 
 * **CI/CD automation** with GitHub Actions
@@ -242,23 +240,23 @@ PostgreSQL data is stored in a named Docker volume so that container replacement
 
 ```mermaid
 flowchart TD
-    Push([git push])
+    Push([git push to main])
 
-    Test[Run Automated Tests<br/>Python 3.13 + PostgreSQL]
+    Test[Run Tests<br/>Python + PostgreSQL]
 
-    Decision{Tests Pass?}
+    TestsPassed{Tests Pass?}
 
-    Build[Build Docker Image<br/>Docker Buildx]
+    Build[Build Docker Image]
 
     Tag[Tag Image<br/>latest + Git SHA]
 
-    Registry[(Docker Hub)]
+    DockerHub[(Docker Hub)]
 
-    Deploy[Deploy to AWS EC2<br/>SSH + SCP]
+    Deploy[Deploy to AWS EC2]
 
-    Pull[Pull Immutable Image<br/>docker compose pull]
+    Pull[Pull SHA-tagged Image]
 
-    Start[Start Services<br/>docker compose up -d]
+    Start[Start Docker Compose]
 
     Health[Health Check<br/>GET /health]
 
@@ -266,18 +264,18 @@ flowchart TD
 
     Success([Deployment Successful])
 
-    Fail([Pipeline Failed])
+    Failure([Pipeline Failed])
 
     Push --> Test
-    Test --> Decision
+    Test --> TestsPassed
 
-    Decision -->|No| Fail
-    Decision -->|Yes| Build
+    TestsPassed -->|No| Failure
+    TestsPassed -->|Yes| Build
 
     Build --> Tag
-    Tag --> Registry
+    Tag --> DockerHub
 
-    Registry --> Deploy
+    DockerHub --> Deploy
     Deploy --> Pull
     Pull --> Start
     Start --> Health
@@ -285,8 +283,8 @@ flowchart TD
     Health --> Healthy
 
     Healthy -->|Yes| Success
-    Healthy -->|No| Fail
-
+    Healthy -->|No| Failure
+```
 ### Pipeline Stages
 
 ### 1. Test
