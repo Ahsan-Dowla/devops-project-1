@@ -105,41 +105,128 @@ http://<EC2_PUBLIC_IP>:8000/docs
 
 # Project Structure
 
+The repository is organized into application, testing, infrastructure, CI/CD, and deployment configuration layers.
+
+```mermaid
+flowchart TB
+
+    Root["devops-project-1/"]
+
+    Root --> App["app/<br/>Application"]
+    Root --> Tests["tests/<br/>Automated Testing"]
+    Root --> Terraform["terraform/<br/>Infrastructure as Code"]
+    Root --> CI[".github/workflows/<br/>CI/CD"]
+    Root --> Docker["Docker & Deployment"]
+    Root --> Config["Configuration"]
+    Root --> Docs["Documentation"]
+
+    subgraph APPLICATION["Application Layer"]
+        ConfigPy["config.py<br/>Environment configuration"]
+        DatabasePy["database.py<br/>DB engine & sessions"]
+        ModelsPy["models.py<br/>SQLAlchemy models"]
+        SchemasPy["schemas.py<br/>Pydantic schemas"]
+        CrudPy["crud.py<br/>Database operations"]
+        MainPy["main.py<br/>FastAPI routes"]
+
+        ConfigPy --> DatabasePy
+        DatabasePy --> ModelsPy
+        ModelsPy --> CrudPy
+        SchemasPy --> MainPy
+        CrudPy --> MainPy
+        DatabasePy --> MainPy
+    end
+
+    subgraph TESTING["Testing Layer"]
+        Conftest["conftest.py<br/>Test fixtures"]
+        TestMain["test_main.py<br/>API tests"]
+
+        Conftest --> TestMain
+    end
+
+    subgraph INFRASTRUCTURE["Infrastructure Layer"]
+        MainTF["main.tf"]
+        VariablesTF["variables.tf"]
+        TFVars["terraform.tfvars.example"]
+        TerraformReadme["README.md<br/>Terraform documentation"]
+
+        VariablesTF --> MainTF
+        TFVars --> MainTF
+        MainTF --> TerraformReadme
+    end
+
+    subgraph CICD["CI/CD Layer"]
+        Workflow["ci.yml<br/>Test → Build → Push → Deploy → Verify"]
+    end
+
+    subgraph CONTAINERS["Containerization"]
+        Dockerfile["Dockerfile<br/>API image"]
+        Compose["docker-compose.yml<br/>API + PostgreSQL"]
+    end
+
+    subgraph CONFIGURATION["Configuration & Dependencies"]
+        Env[".env.example"]
+        Requirements["requirements.txt"]
+        Gitignore[".gitignore"]
+    end
+
+    subgraph DOCUMENTATION["Documentation"]
+        Readme["README.md<br/>Project documentation"]
+    end
+
+    App --> APPLICATION
+    Tests --> TESTING
+    Terraform --> INFRASTRUCTURE
+    CI --> CICD
+    Docker --> CONTAINERS
+    Config --> CONFIGURATION
+    Docs --> DOCUMENTATION
+
+    Workflow --> Dockerfile
+    Workflow --> Compose
+    Dockerfile --> MainPy
+    Compose --> DatabasePy
+    Compose --> Dockerfile
+    Env --> ConfigPy
+    Requirements --> App
+    Terraform --> Root
+```
+
+### Repository Layout
+
 ```text
 devops-project-1/
 │
-├── app/
+├── app/                         # FastAPI application
 │   ├── __init__.py
-│   ├── config.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── crud.py
-│   └── main.py
+│   ├── config.py               # Environment configuration
+│   ├── database.py             # Database engine & sessions
+│   ├── models.py               # SQLAlchemy ORM models
+│   ├── schemas.py              # Pydantic schemas
+│   ├── crud.py                 # Database operations
+│   └── main.py                 # FastAPI application & routes
 │
-├── tests/
+├── tests/                       # Automated tests
 │   ├── __init__.py
-│   ├── conftest.py
-│   └── test_main.py
+│   ├── conftest.py             # Test fixtures
+│   └── test_main.py            # API endpoint tests
 │
-├── terraform/
-│   ├── main.tf
-│   ├── variables.tf
+├── terraform/                   # AWS Infrastructure as Code
+│   ├── main.tf                 # AWS resources
+│   ├── variables.tf            # Terraform variables
 │   ├── terraform.tfvars.example
-│   └── README.md
+│   └── README.md               # Terraform documentation
 │
 ├── .github/
 │   └── workflows/
-│       └── ci.yml
+│       └── ci.yml              # CI/CD pipeline
 │
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-├── .env.example
-├── .gitignore
-└── README.md
+├── Dockerfile                   # FastAPI container image
+├── docker-compose.yml           # API + PostgreSQL
+├── requirements.txt             # Python dependencies
+├── .env.example                 # Environment variable template
+├── .gitignore                   # Git exclusions
+└── README.md                    # Project documentation
 ```
-
 ---
 
 # Local Development
