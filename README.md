@@ -1,68 +1,205 @@
-# DevOps Backend Item Service
+# Automated Cloud Deployment and Monitoring Platform
 
-A minimal, production-ready FastAPI + PostgreSQL backend designed as a DevOps portfolio foundation.
+A production-style DevOps project that demonstrates how to **containerize, test, build, deploy, and operate a FastAPI backend on AWS EC2 using Infrastructure as Code and CI/CD automation**.
 
-## Features
-- **FastAPI**: Modern, fast web framework with automatic OpenAPI documentation (`/docs` and `/redoc`).
-- **PostgreSQL / SQLAlchemy**: ORM-based schema modeling and database connectivity with connection health verification.
-- **Environment Driven**: 12-factor application design configured via environment variables and `pydantic-settings`.
-- **Automated Testing**: Complete test suite using `pytest` and `httpx` with isolated in-memory test database fixtures.
+The application is a small FastAPI + PostgreSQL Item Service, but the primary focus of this project is the **DevOps infrastructure and delivery pipeline** surrounding it.
 
-## Project Structure
+## Architecture
+
 ```text
-devops-project-1/
-├── app/
-│   ├── __init__.py
-│   ├── config.py         # Environment & app configuration
-│   ├── database.py       # Engine, sessionmaker, and get_db dependency
-│   ├── models.py         # SQLAlchemy ORM models (Item)
-│   ├── schemas.py        # Pydantic schemas (ItemCreate, ItemResponse)
-│   ├── crud.py           # Database CRUD helpers
-│   └── main.py           # FastAPI application and route handlers
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py       # Pytest fixtures and TestClient setup
-│   └── test_main.py      # Automated tests for all endpoints
-├── .env.example          # Sample environment variables
-├── .gitignore            # Git ignore configuration
-├── requirements.txt      # Python dependencies
-└── README.md             # Project documentation
+                         ┌─────────────────────┐
+                         │      Developer      │
+                         │                     │
+                         │  git push → main    │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │    GitHub Actions   │
+                         │                     │
+                         │  1. Test            │
+                         │  2. Build           │
+                         │  3. Push            │
+                         │  4. Deploy          │
+                         └──────────┬──────────┘
+                                    │
+                          Docker Image
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │     Docker Hub      │
+                         │                     │
+                         │  Immutable SHA tag  │
+                         └──────────┬──────────┘
+                                    │
+                              docker pull
+                                    │
+                                    ▼
+              ┌───────────────────────────────────────┐
+              │                 AWS EC2               │
+              │                                       │
+              │  ┌─────────────────────────────────┐  │
+              │  │         Docker Compose          │  │
+              │  │                                 │  │
+              │  │   ┌────────────┐ ┌────────────┐ │  │
+              │  │   │  FastAPI   │ │ PostgreSQL │ │  │
+              │  │   │    API     │ │            │ │  │
+              │  │   │  :8000     │ │   :5432    │ │  │
+              │  │   └────────────┘ └────────────┘ │  │
+              │  │                                 │  │
+              │  │      Internal Docker Network    │  │
+              │  └─────────────────────────────────┘  │
+              │                                       │
+              │       Persistent PostgreSQL Volume    │
+              └───────────────────────────────────────┘
+                                    ▲
+                                    │
+                         ┌──────────┴──────────┐
+                         │      Terraform      │
+                         │                     │
+                         │ AWS Infrastructure  │
+                         │ as Code             │
+                         └─────────────────────┘
 ```
 
-## API Endpoints
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/` | Root service status and greeting |
-| `GET` | `/health` | Health check endpoint verifying DB connectivity |
-| `GET` | `/api/items` | Retrieve list of items |
-| `POST` | `/api/items` | Create a new item |
+## What This Project Demonstrates
 
-Interactive API documentation is available at `http://localhost:8000/docs`.
+* **CI/CD automation** with GitHub Actions
+* **Containerization** with Docker
+* **Container orchestration** with Docker Compose
+* **Container image management** with Docker Hub
+* **Cloud deployment** on AWS EC2
+* **Infrastructure as Code** with Terraform
+* **Automated testing** with pytest
+* **PostgreSQL health checks and persistence**
+* **Application health monitoring**
+* **Immutable Docker image deployments**
+* **Environment-based configuration and secrets management**
+* **Linux server administration**
+* **SSH-based automated deployment**
 
-## Local Setup
+---
 
-### 1. Create and Activate Virtual Environment
+# Technology Stack
+
+| Category               | Technology        |
+| ---------------------- | ----------------- |
+| Backend                | FastAPI           |
+| Language               | Python 3.13       |
+| Database               | PostgreSQL        |
+| ORM                    | SQLAlchemy        |
+| Testing                | pytest + httpx    |
+| Containerization       | Docker            |
+| Orchestration          | Docker Compose    |
+| Container Registry     | Docker Hub        |
+| CI/CD                  | GitHub Actions    |
+| Cloud                  | AWS EC2           |
+| Infrastructure as Code | Terraform         |
+| Server OS              | Ubuntu            |
+| API Documentation      | OpenAPI / Swagger |
+
+---
+
+# Application
+
+The backend is a lightweight REST API for managing items.
+
+### API Endpoints
+
+| Method | Endpoint     | Description                         |
+| ------ | ------------ | ----------------------------------- |
+| `GET`  | `/`          | Service status                      |
+| `GET`  | `/health`    | Application + database health check |
+| `GET`  | `/api/items` | Retrieve items                      |
+| `POST` | `/api/items` | Create an item                      |
+
+Interactive API documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+Production:
+
+```text
+http://<EC2_PUBLIC_IP>:8000/docs
+```
+
+---
+
+# Project Structure
+
+```text
+devops-project-1/
+│
+├── app/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── crud.py
+│   └── main.py
+│
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   └── test_main.py
+│
+├── terraform/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── terraform.tfvars.example
+│   └── README.md
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+├── .env.example
+├── .gitignore
+└── README.md
+```
+
+---
+
+# Local Development
+
+## 1. Create Virtual Environment
+
 ```bash
 python -m venv .venv
+```
 
-# On Windows:
+### Windows
+
+```bash
 .venv\Scripts\activate
+```
 
-# On Linux/macOS:
+### Linux / macOS
+
+```bash
 source .venv/bin/activate
 ```
 
-### 2. Install Dependencies
+## 2. Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
-Copy `.env.example` to `.env` and adjust database credentials if needed:
+## 3. Configure Environment
+
 ```bash
 cp .env.example .env
 ```
-Default configuration:
+
+Example:
+
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/devops_db
 APP_NAME="DevOps Item Service"
@@ -70,145 +207,409 @@ APP_ENV=development
 DEBUG=True
 PORT=8000
 ```
-*(Note: If no PostgreSQL database is available, the app falls back to SQLite `sqlite:///./devops.db` for zero-setup local runs).*
 
-### 4. Run Tests
+For zero-setup development, the application can fall back to SQLite when PostgreSQL is unavailable.
+
+## 4. Run Tests
+
 ```bash
 pytest -v
 ```
 
-### 5. Start Application Locally
+## 5. Start the API
+
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
 ---
 
-## Docker & Docker Compose Setup
+# Docker
 
-Run the application and PostgreSQL together in isolated containers with persistence and health checking. The deployment Compose file is image-based: set `DOCKER_IMAGE` in `.env` to an existing Docker Hub image before starting it.
+The application can be run together with PostgreSQL using Docker Compose.
 
-### 1. Configure the image
 ```bash
-cp .env.example .env
-# Set DOCKER_IMAGE to a published image in .env
+docker compose up -d
 ```
 
-### 2. Start Services
-```bash
-docker compose pull api
-docker compose up -d --no-build
-```
+Check containers:
 
-### 3. Check Status and Logs
 ```bash
 docker compose ps
+```
+
+View logs:
+
+```bash
 docker compose logs -f
 ```
 
-### 4. Health Check
+Test the health endpoint:
+
 ```bash
 curl http://localhost:8000/health
 ```
 
-### 5. Stop Containers
+Stop the environment:
+
 ```bash
 docker compose down
 ```
 
+PostgreSQL data is stored in a named Docker volume so that container replacement does not automatically remove database data.
+
 ---
 
-## Automated CI/CD Pipeline (GitHub Actions to AWS EC2)
+# CI/CD Pipeline
 
-The repository includes a 3-stage automated CI/CD pipeline defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+Every push to the main branch triggers the GitHub Actions pipeline.
 
 ```text
-git push (main)
-  │
-  ▼
-1. Run Automated Tests
-   ├── Real PostgreSQL service container with pg_isready healthcheck
-   ├── Python 3.13 setup with pip caching
-   └── pytest test suite (100% pass required)
-  │
-  ▼
-2. Build & Push Docker Image
-   ├── Docker Buildx setup
-   ├── Docker Hub authentication (via GitHub Secrets)
-   └── Build & push image tagged with latest and ${{ github.sha }}
-  │
-  ▼
-3. Deploy to AWS EC2
-   ├── Copy docker-compose.yml to EC2 via SCP (~/app)
-   ├── Securely write ~/app/.env with the immutable image tag and DB credentials
-   ├── Pull the Docker Hub image: `docker compose pull api`
-   ├── Start containers without a local build: `docker compose up -d --no-build`
-   └── Run an HTTP health check retry loop against http://localhost:8000/health
+             git push
+                 │
+                 ▼
+        ┌─────────────────┐
+        │   Run Tests     │
+        │                 │
+        │ PostgreSQL      │
+        │ pytest          │
+        └────────┬────────┘
+                 │
+             PASS
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Build Docker    │
+        │ Image           │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Push to         │
+        │ Docker Hub      │
+        │                 │
+        │ latest + SHA    │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Deploy to EC2   │
+        │                 │
+        │ SCP compose     │
+        │ Configure .env  │
+        │ Pull image      │
+        │ Restart service │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Health Check    │
+        │                 │
+        │ /health         │
+        └─────────────────┘
 ```
 
-### Required GitHub Secrets
-To enable automated container build, push, and remote EC2 deployment, configure the following secrets in your GitHub repository (**Settings > Secrets and variables > Actions**):
+### Pipeline Stages
 
-| Secret Name | Description | Example / Format |
-|---|---|---|
-| `DOCKERHUB_USERNAME` | Your Docker Hub account username | `johndoe` |
-| `DOCKERHUB_TOKEN` | Docker Hub Personal Access Token (PAT) with Read & Write permissions | `dckr_pat_xxxxxx` |
-| `EC2_HOST` | Public IPv4 address or public DNS of your AWS EC2 instance | `54.210.xx.xx` or `ec2-xx.compute-1.amazonaws.com` |
-| `EC2_USER` | SSH username for your EC2 Linux distribution | `ubuntu` (for Ubuntu) or `ec2-user` (for Amazon Linux) |
-| `EC2_SSH_KEY` | Raw PEM private key contents used to connect to your EC2 instance | `-----BEGIN RSA PRIVATE KEY----- ... -----END RSA PRIVATE KEY-----` |
-| `POSTGRES_PASSWORD` | Secure production database password for PostgreSQL | `my_strong_db_password_123` |
+### 1. Test
 
-`POSTGRES_PASSWORD` is required for production deployment and must be stored only as a GitHub Actions repository secret. Never put the production value in the repository, workflow file, or command-line arguments.
+GitHub Actions starts a PostgreSQL service container and executes the automated test suite.
 
-### EC2 deployment and monitoring
+```text
+Python 3.13
+     +
+PostgreSQL
+     ↓
+pytest
+```
 
-The deploy job creates or updates `~/app/.env` on EC2, then runs:
+The deployment pipeline stops if the tests fail.
+
+### 2. Build
+
+Docker Buildx builds the application image.
+
+The image is tagged with:
+
+```text
+latest
+```
+
+and the immutable Git commit SHA:
+
+```text
+<github-sha>
+```
+
+### 3. Push
+
+The image is pushed to Docker Hub using GitHub Actions secrets.
+
+### 4. Deploy
+
+The workflow connects to the AWS EC2 instance over SSH and:
 
 ```bash
-cd ~/app
 docker compose pull api
 docker compose up -d --no-build
+```
+
+The deployment uses the commit SHA image rather than relying exclusively on `latest`.
+
+### 5. Verify
+
+After deployment, GitHub Actions repeatedly checks:
+
+```bash
+curl --fail http://localhost:8000/health
+```
+
+The workflow fails if the application does not become healthy.
+
+---
+
+# GitHub Actions Secrets
+
+The following repository secrets are required:
+
+| Secret               | Purpose                          |
+| -------------------- | -------------------------------- |
+| `DOCKERHUB_USERNAME` | Docker Hub username              |
+| `DOCKERHUB_TOKEN`    | Docker Hub Personal Access Token |
+| `EC2_HOST`           | EC2 public IP / DNS              |
+| `EC2_USER`           | EC2 SSH user                     |
+| `EC2_SSH_KEY`        | EC2 private SSH key              |
+| `POSTGRES_PASSWORD`  | Production PostgreSQL password   |
+
+Sensitive values are **not committed to Git**.
+
+The production database password is supplied to the deployment environment through GitHub Actions secrets.
+
+---
+
+# AWS EC2 Deployment
+
+The production application runs on an AWS EC2 instance.
+
+The server runs:
+
+```text
+Ubuntu
+Docker
+Docker Compose
+```
+
+The deployed services are:
+
+```text
+EC2
+│
+└── Docker Compose
+    │
+    ├── FastAPI
+    │   └── Port 8000
+    │
+    └── PostgreSQL
+        └── Internal port 5432
+```
+
+PostgreSQL is **not publicly exposed**.
+
+Only the API port is intended to be reachable externally.
+
+Useful operational commands:
+
+```bash
 docker compose ps
 ```
 
-The API runs from the Docker Hub image tagged with the commit SHA that triggered the workflow. PostgreSQL is available only on the internal Compose network; port `5432` is not published publicly. The named `postgres_data` volume preserves database data across container replacements, and the API remains available on port `8000`.
+```bash
+docker compose logs --tail 100 api
+```
 
-For operational checks on EC2, use `docker compose ps`, `docker compose logs --tail 100 api`, and `curl --fail http://localhost:8000/health`. The workflow retries this health endpoint after startup and fails the deployment if the service does not become healthy.
+```bash
+curl --fail http://localhost:8000/health
+```
 
 ---
 
-## Infrastructure as Code with Terraform
+# Infrastructure as Code
 
-Terraform provides a repeatable, reviewable description of the existing AWS
-infrastructure without replacing the live server. The configuration in
-[`terraform/`](terraform/) adopts the `devops-demo-server` EC2 instance and its
-existing security group, while protecting both resources with
-`prevent_destroy = true`. It preserves the instance's AMI, `t3.micro` type,
-subnet, key pair, public IP behavior, storage, and required SSH/API/HTTP rules.
-PostgreSQL port `5432` is not exposed.
+Terraform is used to describe and manage the AWS infrastructure.
 
-Terraform uses the standard AWS credential chain or profile; no AWS keys,
-passwords, or tokens are stored in Terraform files. `terraform.tfvars` and
-Terraform state are ignored because they can contain infrastructure details
-and sensitive values.
+The current Terraform configuration safely adopts the existing EC2 infrastructure rather than creating a second server.
+
+Managed resources include:
+
+* EC2 instance
+* Existing security group
+* Network configuration
+* Instance configuration
+* SSH/API access rules
+
+The configuration uses:
+
+```text
+prevent_destroy = true
+```
+
+to reduce the risk of accidentally destroying the existing infrastructure.
+
+## Terraform Workflow
 
 ```bash
 cd terraform
+```
+
+Create the local variables file:
+
+```bash
 cp terraform.tfvars.example terraform.tfvars
+```
+
+Initialize Terraform:
+
+```bash
 terraform init
+```
+
+Format:
+
+```bash
 terraform fmt -recursive
+```
+
+Validate:
+
+```bash
 terraform validate
+```
+
+Review infrastructure changes:
+
+```bash
 terraform plan
 ```
 
-Before planning, fill in the current AMI, subnet, key pair, VPC, and security
-group values. Import the existing resources rather than creating new ones:
+Existing resources can be imported into Terraform:
 
 ```bash
-terraform import aws_instance.production i-02318fd1b3f7f89b3
-terraform import aws_security_group.production sg-REPLACE_WITH_EXISTING_SECURITY_GROUP_ID
+terraform import aws_instance.production <INSTANCE_ID>
 ```
 
-Never run `terraform apply` until the plan has been reviewed and confirms no
-EC2 replacement or destruction. See [`terraform/README.md`](terraform/README.md)
-for the complete safe adoption workflow.
+```bash
+terraform import aws_security_group.production <SECURITY_GROUP_ID>
+```
+
+**Do not run `terraform apply` until the plan has been carefully reviewed.**
+
+The complete Terraform adoption procedure is documented in [`terraform/README.md`](terraform/README.md).
+
+---
+
+# Security Considerations
+
+This project intentionally follows several production-style practices:
+
+* Secrets are stored in GitHub Actions Secrets.
+* Production credentials are not committed to Git.
+* PostgreSQL is not publicly exposed.
+* Docker images are deployed using immutable commit SHA tags.
+* EC2 access is performed through SSH.
+* Terraform state and variable files are excluded from Git.
+* Infrastructure resources use `prevent_destroy` where appropriate.
+* Application health is verified after deployment.
+
+---
+
+# Deployment Flow
+
+The complete developer workflow is:
+
+```text
+1. Developer changes code
+          ↓
+2. git push
+          ↓
+3. GitHub Actions starts
+          ↓
+4. Automated tests
+          ↓
+5. Docker image build
+          ↓
+6. Push image to Docker Hub
+          ↓
+7. SSH into AWS EC2
+          ↓
+8. Pull new image
+          ↓
+9. Restart Docker Compose
+          ↓
+10. Health check
+          ↓
+11. Application live
+```
+
+This means a code change can move from **Git commit → tested artifact → cloud deployment → health verification** without manually rebuilding or copying the application onto the server.
+
+---
+
+# DevOps Skills Demonstrated
+
+This project provides hands-on experience with:
+
+```text
+Linux
+  ↓
+Git & GitHub
+  ↓
+Python / FastAPI
+  ↓
+PostgreSQL
+  ↓
+Docker
+  ↓
+Docker Compose
+  ↓
+GitHub Actions
+  ↓
+Docker Hub
+  ↓
+AWS EC2
+  ↓
+Terraform
+  ↓
+CI/CD
+  ↓
+Health Checks & Operations
+```
+
+---
+
+# Future Improvements
+
+Potential next iterations include:
+
+* HTTPS with Nginx and Let's Encrypt
+* Domain name configuration
+* Centralized logging
+* Prometheus + Grafana monitoring
+* Application metrics
+* Automated rollback
+* Blue/green or rolling deployments
+* AWS CloudWatch integration
+* Remote Terraform state
+* AWS IAM least-privilege deployment
+* Infrastructure provisioning from scratch instead of adopting an existing EC2 instance
+
+---
+
+## Project Goal
+
+The goal of this project is not to build a complex application.
+
+The goal is to demonstrate the **complete DevOps lifecycle of a backend service**:
+
+> **Develop → Test → Containerize → Publish → Deploy → Verify → Operate**
+
+It serves as a practical foundation for demonstrating DevOps engineering skills in internship and entry-level engineering applications.
