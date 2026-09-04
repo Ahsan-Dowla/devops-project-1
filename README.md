@@ -6,61 +6,39 @@ The application is a small FastAPI + PostgreSQL Item Service, but the primary fo
 
 ## Architecture
 
-```text
-                         ┌─────────────────────┐
-                         │      Developer      │
-                         │                     │
-                         │  git push → main    │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │    GitHub Actions   │
-                         │                     │
-                         │  1. Test            │
-                         │  2. Build           │
-                         │  3. Push            │
-                         │  4. Deploy          │
-                         └──────────┬──────────┘
-                                    │
-                          Docker Image
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │     Docker Hub      │
-                         │                     │
-                         │  Immutable SHA tag  │
-                         └──────────┬──────────┘
-                                    │
-                              docker pull
-                                    │
-                                    ▼
-              ┌───────────────────────────────────────┐
-              │                 AWS EC2               │
-              │                                       │
-              │  ┌─────────────────────────────────┐  │
-              │  │         Docker Compose          │  │
-              │  │                                 │  │
-              │  │   ┌────────────┐ ┌────────────┐ │  │
-              │  │   │  FastAPI   │ │ PostgreSQL │ │  │
-              │  │   │    API     │ │            │ │  │
-              │  │   │  :8000     │ │   :5432    │ │  │
-              │  │   └────────────┘ └────────────┘ │  │
-              │  │                                 │  │
-              │  │      Internal Docker Network    │  │
-              │  └─────────────────────────────────┘  │
-              │                                       │
-              │       Persistent PostgreSQL Volume    │
-              └───────────────────────────────────────┘
-                                    ▲
-                                    │
-                         ┌──────────┴──────────┐
-                         │      Terraform      │
-                         │                     │
-                         │ AWS Infrastructure  │
-                         │ as Code             │
-                         └─────────────────────┘
-```
+```mermaid
+flowchart TD
+    User([Developer / User])
+
+    GitHub[GitHub Repository]
+    Actions[GitHub Actions]
+
+    Registry[Docker Hub]
+
+    subgraph AWS["AWS EC2"]
+        direction TB
+
+        Proxy[Reverse Proxy]
+
+        API[FastAPI API<br/>Port 8000]
+
+        DB[(PostgreSQL)]
+
+        Volume[(Persistent<br/>PostgreSQL Volume)]
+
+        API --> DB
+        DB --> Volume
+    end
+
+    User --> GitHub
+    GitHub -->|Push to main| Actions
+
+    Actions -->|Build & Push<br/>SHA-tagged image| Registry
+
+    Registry -->|docker pull| API
+
+    User -->|HTTP / HTTPS| Proxy
+    Proxy --> API
 
 ## What This Project Demonstrates
 
@@ -260,54 +238,54 @@ PostgreSQL data is stored in a named Docker volume so that container replacement
 
 ---
 
-# CI/CD Pipeline
+## CI/CD Pipeline
 
-Every push to the main branch triggers the GitHub Actions pipeline.
+```mermaid
+flowchart TD
+    Push([git push])
 
-```text
-             git push
-                 │
-                 ▼
-        ┌─────────────────┐
-        │   Run Tests     │
-        │                 │
-        │ PostgreSQL      │
-        │ pytest          │
-        └────────┬────────┘
-                 │
-             PASS
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ Build Docker    │
-        │ Image           │
-        └────────┬────────┘
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ Push to         │
-        │ Docker Hub      │
-        │                 │
-        │ latest + SHA    │
-        └────────┬────────┘
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ Deploy to EC2   │
-        │                 │
-        │ SCP compose     │
-        │ Configure .env  │
-        │ Pull image      │
-        │ Restart service │
-        └────────┬────────┘
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ Health Check    │
-        │                 │
-        │ /health         │
-        └─────────────────┘
-```
+    Test[Run Automated Tests<br/>Python 3.13 + PostgreSQL]
+
+    Decision{Tests Pass?}
+
+    Build[Build Docker Image<br/>Docker Buildx]
+
+    Tag[Tag Image<br/>latest + Git SHA]
+
+    Registry[(Docker Hub)]
+
+    Deploy[Deploy to AWS EC2<br/>SSH + SCP]
+
+    Pull[Pull Immutable Image<br/>docker compose pull]
+
+    Start[Start Services<br/>docker compose up -d]
+
+    Health[Health Check<br/>GET /health]
+
+    Healthy{Healthy?}
+
+    Success([Deployment Successful])
+
+    Fail([Pipeline Failed])
+
+    Push --> Test
+    Test --> Decision
+
+    Decision -->|No| Fail
+    Decision -->|Yes| Build
+
+    Build --> Tag
+    Tag --> Registry
+
+    Registry --> Deploy
+    Deploy --> Pull
+    Pull --> Start
+    Start --> Health
+
+    Health --> Healthy
+
+    Healthy -->|Yes| Success
+    Healthy -->|No| Fail
 
 ### Pipeline Stages
 
