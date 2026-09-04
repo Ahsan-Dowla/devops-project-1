@@ -1,4 +1,4 @@
-# Automated Cloud Deployment and Monitoring Platform
+# Automated Cloud Deployment Platform
 
 A production-style DevOps project that demonstrates how to **containerize, test, build, deploy, and operate a FastAPI backend on AWS EC2 using Infrastructure as Code and CI/CD automation**.
 
